@@ -1011,17 +1011,19 @@ class FixtureDef(Generic[FixtureValue]):
             except BaseException as e:
                 exceptions.append(e)
         node = request.node
-        node.ihook.pytest_fixture_post_finalizer(fixturedef=self, request=request)
-        # Even if finalization fails, we invalidate the cached fixture
-        # value and remove all finalizers because they may be bound methods
-        # which will keep instances alive.
-        self.cached_result = None
-        self._finalizers.clear()
-        if len(exceptions) == 1:
-            raise exceptions[0]
-        elif len(exceptions) > 1:
-            msg = f'errors while tearing down fixture "{self.argname}" of {node}'
-            raise BaseExceptionGroup(msg, exceptions[::-1])
+        try:
+            if len(exceptions) == 1:
+                raise exceptions[0]
+            elif len(exceptions) > 1:
+                msg = f'errors while tearing down fixture "{self.argname}" of {node}'
+                raise BaseExceptionGroup(msg, exceptions[::-1])
+        finally:
+            node.ihook.pytest_fixture_post_finalizer(fixturedef=self, request=request)
+            # Even if finalization fails, we invalidate the cached fixture
+            # value and remove all finalizers because they may be bound methods
+            # which will keep instances alive.
+            self.cached_result = None
+            self._finalizers.clear()
 
     def execute(self, request: SubRequest) -> FixtureValue:
         """Return the value of this fixture, executing it if not cached."""
